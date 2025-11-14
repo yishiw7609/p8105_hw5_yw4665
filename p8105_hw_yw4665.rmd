@@ -3,3 +3,43 @@ title: "Homework 5"
 author: "Yishi Wang"
 output: github_document
 ---
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Problem 1
+Build a function that draw n birthdays and return true if there are duplicates. We use set.seed() for reproducibility:
+```{r}
+set.seed(100)
+
+has_duplicate_bday = function(n) {
+  bdays = sample(1:365, n, replace = TRUE)
+  return(any(duplicated(bdays)))
+}
+```
+
+Run simulations and save results as data frame:
+```{r}
+group_sizes = 2:50
+bd_simulation = sapply(group_sizes, function(n) mean(replicate(10000, has_duplicate_bday(n))))
+bd_simulation_df = data.frame(n = group_sizes, prob = bd_simulation)
+```
+
+Plot our simulation result:
+```{r}
+bd_simulation_df |>
+  ggplot(aes(x = n, y = prob)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "group size",
+    y = "P(at least one shared birthday)",
+    title = "Probability that duplicated birthday exist in n people"
+  ) +
+  theme_minimal()
+```
+
