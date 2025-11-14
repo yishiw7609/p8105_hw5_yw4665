@@ -30,7 +30,7 @@ bd_simulation_df = data.frame(n = group_sizes, prob = bd_simulation)
 ```
 
 Plot our simulation result:
-```{r}
+```{r dpi=300}
 bd_simulation_df |>
   ggplot(aes(x = n, y = prob)) +
   geom_line() +
@@ -42,6 +42,8 @@ bd_simulation_df |>
   ) +
   theme_minimal()
 ```
+
+From the plot above, we see the probability that duplicated birthday exist in a group of people increases rapidly (almost linearly) as group size increases. It is very likely that a group of 50 people have shared birth dates.
 
 ## Problem 2
 Build a function that simulates power in one-sample t-test:
@@ -84,7 +86,7 @@ summary_df <- bind_rows(
 ```
 
 Make a plot showing the proportion of times the null was rejected:
-```{r}
+```{r dpi=300}
 ggplot(summary_df, aes(x = mu_true, y = power)) +
   geom_line() + geom_point() +
   labs(x = "true mu", 
@@ -94,7 +96,7 @@ ggplot(summary_df, aes(x = mu_true, y = power)) +
 
 From the plot above, we see the power increases as the true value of $\mu$ increases, because large effect sizes are easily detected by t-test. Now we
 make a plot to show the average estimate of all and rejected $\hat\mu$:
-```{r}
+```{r dpi=300}
 ggplot(summary_df, aes(x = mu_true)) +
   geom_line(aes(y = mean_est_all), linetype = "solid") +
   geom_point(aes(y = mean_est_all)) +
