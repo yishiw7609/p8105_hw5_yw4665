@@ -4,10 +4,9 @@ author: "Yishi Wang"
 output: github_document
 ---
 
-```{r}
+```{r setup, include=FALSE}
 library(tidyverse)
 library(ggplot2)
-
 
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
@@ -109,3 +108,113 @@ ggplot(summary_df, aes(x = mu_true)) +
 From the plot above, we see the difference between $\hat\mu$ for which the null is rejected differs and true $\mu$ gets smaller as true $\mu$ gets bigger. Selecting tests with rejected null keeps only the large sample means, but when almost every sample gets rejected (power approaches 1), the selection bias disappears.
 
 ## Problem 3
+Import and check the data:
+```{r}
+homicides_df = read_csv("local_files/homicide-data.csv") |>
+  janitor::clean_names()
+```
+This dataset is gathered by Washington Post and has data on homicides in 50 large U.S. cities, main variable names include:
+
+**uid** — unique record id.
+
+**reported_date** — date the homicide was reported (YYYYMMDD).
+
+**victim_last, victim_first** — victim name parts.
+
+**victim_race** — victim race/ethnicity.
+
+**victim_age** — victim age.
+
+**victim_sex** — sex/gender.
+
+**city, state** — city and 2-letter state.
+
+**lat, lon** — latitude/longitude.
+
+**disposition** — case disposition.
+
+Next, we create city_state variable and summarize cities to get total number of homicides and the number of unsolved homicides:
+```{r}
+homicides_df = homicides_df |>
+  mutate(city_state = paste0(city, ", ", state))
+
+city_counts = homicides_df |>
+  group_by(city_state) |>
+  summarise(
+    total_homicides = n(),
+    unsolved_homicides = sum(disposition %in% c("Closed without arrest", "Open/No arrest"), na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+First, filter out the city of Baltimore and use prop.test to estimate the proportion of unsolved homicides:
+```{r}
+baltimore_counts = city_counts |>
+  filter(city_state == "Baltimore, MD")
+
+baltimore_prop_test = prop.test(
+  x = baltimore_counts$unsolved_homicides[1],
+  n = baltimore_counts$total_homicides[1]
+)
+```
+
+Save the result from our test above:
+```{r}
+saveRDS(baltimore_prop_test, file = "local_files/baltimore_props.rds", compress = "xz")
+```
+
+Tidy and pull the estimated proportion and confidence intervals:
+```{r}
+baltimore_tidy = broom::tidy(baltimore_prop_test)
+
+# The estimated proportion is:
+baltimore_tidy$estimate
+
+# The lower CI is:
+baltimore_tidy$conf.low
+
+# The upper CI is:
+baltimore_tidy$conf.high
+```
+
+Now we run prop.test for all cities similar to what we did on Baltimore, and return a tidy data frame with purrr package and unnest() 
+```{r}
+city_props = city_counts |>
+  filter(total_homicides > 0) |>
+  mutate(
+    prop_test_obj = purrr::map2(unsolved_homicides, total_homicides, ~ prop.test(.x, .y)),
+    tidy_test = purrr::map(prop_test_obj, broom::tidy)
+  ) |>
+  unnest(tidy_test) |>
+  select(
+    city_state,
+    estimate,
+    conf.low,
+    conf.high,
+  )
+
+city_props |> 
+  knitr::kable()
+```
+
+Lastly, plot our results above:
+```{r fig.width=8, fig.height=8, dpi=300}
+city_props_plot = city_props |>
+  mutate(city_state = fct_reorder(city_state, estimate))
+
+unsolved_prop_plot = ggplot(city_props_plot, aes(x = city_state, y = estimate)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2) +
+  coord_flip() +
+  labs(
+    x = "city",
+    y = "estimated proportion unsolved",
+    title = "Proportion of Unsolved Homicides by City",
+    caption = "Points = estimate   bars = 95% CI"
+  ) +
+  theme_minimal()
+
+print(unsolved_prop_plot)
+```
+
+
